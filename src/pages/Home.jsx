@@ -10,18 +10,27 @@ function seededRandom(seedStr) {
   for (let i = 0; i < seedStr.length; i++) {
     h = Math.imul(h ^ seedStr.charCodeAt(i), 2654435761);
   }
-  return function() {
+  return function () {
     h = Math.imul(h ^ (h >>> 16), 2246822507);
     h = Math.imul(h ^ (h >>> 13), 3266489909);
     return ((h ^= h >>> 16) >>> 0) / 4294967296; // Return float between 0 and 1
   }
 }
 
-// Defensive helper to fix manually imported named colors that incorrectly have a # prefix (e.g. #BURLYWOOD)
+// Defensive helper to ensure colors are always valid CSS values.
+// Handles:
+// - Normal hex: '#FFB3BA' → '#FFB3BA' ✅
+// - Missing # prefix: 'FFB3BA' → '#FFB3BA' ✅
+// - Named color with bad # prefix: '#BURLYWOOD' → 'BURLYWOOD' ✅
 const formatColor = (c) => {
   if (!c) return '#000000';
+  // If it starts with '#' but is too long to be a hex color, strip the '#' (it's a named color)
   if (c.startsWith('#') && c.length > 7) {
-    return c.substring(1); // Return 'BURLYWOOD' instead of '#BURLYWOOD'
+    return c.substring(1); // e.g. '#BURLYWOOD' → 'BURLYWOOD'
+  }
+  // If it doesn't start with '#' and looks like a hex string (3 or 6 hex chars), add '#'
+  if (!c.startsWith('#') && /^[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(c)) {
+    return '#' + c;
   }
   return c;
 };
@@ -50,11 +59,11 @@ export default function Home({ searchQuery }) {
       if (isSupabaseConfigured) {
         try {
           let query = supabase.from('palettes').select('*');
-          
+
           if (activeTag) {
             query = query.eq('tag', activeTag);
           }
-          
+
           if (activeFilter === 'Popular') {
             query = query.order('likes', { ascending: false });
           } else if (activeFilter === 'New') {
@@ -62,19 +71,19 @@ export default function Home({ searchQuery }) {
           }
 
           const { data, error } = await query;
-          
+
           if (error) throw error;
-          
+
           // Map DB columns to our frontend expectations
           const formattedData = data.map(p => ({
             id: p.id,
             colors: p.colors,
             likes: p.likes,
             tag: p.tag,
-            // Calculate fake "hours ago" for demo if time doesn't exist, normally we'd use actual date math
+            created_at: p.created_at, // ← needed for the 'New' sort in displayPalettes
             time: Math.floor((new Date() - new Date(p.created_at)) / (1000 * 60 * 60))
           }));
-          
+
           setPalettes(formattedData);
         } catch (error) {
           console.error("Error fetching from Supabase:", error);
@@ -112,7 +121,7 @@ export default function Home({ searchQuery }) {
     setLikedIds(newLiked);
 
     // Optimistic UI update
-    setPalettes(prev => prev.map(p => 
+    setPalettes(prev => prev.map(p =>
       p.id === id ? { ...p, likes: p.likes + likeModifier } : p
     ));
 
@@ -142,37 +151,39 @@ export default function Home({ searchQuery }) {
   const displayPalettes = useMemo(() => {
     let result = [...palettes];
 
-    // 1. FIRST STEP: Deterministically choose exactly 50 palettes for the day
-    if (result.length > 50) {
-      const dateSeed = new Date().toDateString();
-      const rand = seededRandom(dateSeed);
-      
-      // Shuffle array deterministically so it's random but locked for 24 hours
-      for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(rand() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-      }
-      
-      // Keep only the top 50 as the daily pool
-      result = result.slice(0, 50);
-    }
-
-    // 2. NOW apply all user filters strictly on those 50 palettes
+    // 1. Apply tags and search first so they have a full pool to pull from
     if (activeTag) {
       result = result.filter(p => p.tag === activeTag);
     }
-    
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(p => 
-        p.tag.toLowerCase().includes(q) || 
+      result = result.filter(p =>
+        p.tag.toLowerCase().includes(q) ||
         p.colors.some(c => c.toLowerCase().includes(q))
       );
     }
 
     if (activeFilter === 'Collection') {
       result = result.filter(p => likedIds.has(p.id));
-    } else if (activeFilter === 'Random') {
+    }
+
+    // 2. NOW deterministically choose up to 50 palettes for the day from the filtered pool
+    // (We only do this if it's not the Collection view, as the collection shouldn't be limited)
+    if (activeFilter !== 'Collection' && result.length > 50) {
+      const dateSeed = new Date().toDateString() + (activeTag || 'all') + (searchQuery || '');
+      const rand = seededRandom(dateSeed);
+
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+
+      result = result.slice(0, 50);
+    }
+
+    // 3. Finally apply the sorting (Random, Popular, New) on the chosen 50
+    if (activeFilter === 'Random') {
       // Shuffle the 50 palettes purely randomly on every click
       result.sort(() => Math.random() - 0.5);
     } else if (activeFilter === 'Popular') {
@@ -188,7 +199,7 @@ export default function Home({ searchQuery }) {
 
   return (
     <div style={{ paddingBottom: '4rem', position: 'relative' }}>
-      
+
       {/* Toast Notification */}
       {toastMessage && (
         <div style={{
@@ -210,34 +221,34 @@ export default function Home({ searchQuery }) {
       {/* Horizontal Filter Bar */}
       <div className="filter-bar">
         <div className="filter-group">
-          <button 
+          <button
             className={`filter-pill ${activeFilter === 'New' && !activeTag ? 'active' : ''}`}
-            onClick={() => {setActiveFilter('New'); setActiveTag(null);}}
-          ><Sparkles size={16}/> New</button>
-          
-          <button 
+            onClick={() => { setActiveFilter('New'); setActiveTag(null); }}
+          ><Sparkles size={16} /> New</button>
+
+          <button
             className={`filter-pill ${activeFilter === 'Popular' && !activeTag ? 'active' : ''}`}
-            onClick={() => {setActiveFilter('Popular'); setActiveTag(null);}}
-          ><Flame size={16}/> Popular</button>
-          
-          <button 
+            onClick={() => { setActiveFilter('Popular'); setActiveTag(null); }}
+          ><Flame size={16} /> Popular</button>
+
+          <button
             className={`filter-pill ${activeFilter === 'Random' && !activeTag ? 'active' : ''}`}
-            onClick={() => {setActiveFilter('Random'); setActiveTag(null);}}
-          ><Shuffle size={16}/> Random</button>
-          
+            onClick={() => { setActiveFilter('Random'); setActiveTag(null); }}
+          ><Shuffle size={16} /> Random</button>
+
           {user && (
-            <button 
+            <button
               className={`filter-pill ${activeFilter === 'Collection' && !activeTag ? 'active' : ''}`}
-              onClick={() => {setActiveFilter('Collection'); setActiveTag(null);}}
-            ><FolderHeart size={16}/> Collection ({likedIds.size})</button>
+              onClick={() => { setActiveFilter('Collection'); setActiveTag(null); }}
+            ><FolderHeart size={16} /> Collection ({likedIds.size})</button>
           )}
         </div>
-        
+
         <div className="filter-divider"></div>
-        
+
         <div className="filter-group">
           {['Pastel', 'Vintage', 'Retro', 'Neon', 'Dark', 'Warm', 'Cold'].map(tag => (
-            <button 
+            <button
               key={tag}
               className={`filter-pill ${activeTag === tag ? 'active' : 'outline'}`}
               onClick={() => toggleTag(tag)}
@@ -274,9 +285,9 @@ export default function Home({ searchQuery }) {
               <div key={palette.id} className="unique-palette-card">
                 <div className="palette-colors-row">
                   {palette.colors.map((color, index) => (
-                    <div 
+                    <div
                       key={index}
-                      className="palette-color-block" 
+                      className="palette-color-block"
                       style={{ backgroundColor: formatColor(color) }}
                       onClick={(e) => handleCopy(e, color)}
                     >
@@ -284,16 +295,16 @@ export default function Home({ searchQuery }) {
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="palette-footer" style={{ marginTop: '1rem', borderTop: 'none', padding: '0 1.5rem 1.5rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
                     {palette.likes.toLocaleString()} likes
                   </div>
-                  <button 
-                    className="like-btn" 
+                  <button
+                    className="like-btn"
                     title="Save to Collection"
                     onClick={(e) => handleLike(e, palette.id)}
-                    style={{ 
+                    style={{
                       color: isLiked ? 'var(--accent)' : 'var(--text-muted)',
                       borderColor: isLiked ? 'rgba(244, 63, 94, 0.3)' : 'var(--border-color)',
                       backgroundColor: isLiked ? 'rgba(244, 63, 94, 0.05)' : 'transparent',

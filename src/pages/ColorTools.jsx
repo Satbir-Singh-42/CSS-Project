@@ -1,171 +1,226 @@
 import React, { useState, useEffect } from 'react';
+import { Copy, Check, Sliders, Palette, Sun } from 'lucide-react';
 
-// Helpers
+/* ─── helpers ──────────────────────────────────────────────── */
 function hexToRGB(hex) {
   let r = 0, g = 0, b = 0;
   if (hex.length === 4) {
-    r = parseInt(hex[1] + hex[1], 16);
-    g = parseInt(hex[2] + hex[2], 16);
-    b = parseInt(hex[3] + hex[3], 16);
+    r = parseInt(hex[1]+hex[1],16); g = parseInt(hex[2]+hex[2],16); b = parseInt(hex[3]+hex[3],16);
   } else if (hex.length === 7) {
-    r = parseInt(hex[1] + hex[2], 16);
-    g = parseInt(hex[3] + hex[4], 16);
-    b = parseInt(hex[5] + hex[6], 16);
+    r = parseInt(hex.slice(1,3),16); g = parseInt(hex.slice(3,5),16); b = parseInt(hex.slice(5,7),16);
   }
   return { r, g, b };
 }
-
-function rgbToHex(r, g, b) {
-  return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+function rgbToHex(r,g,b) {
+  return '#' + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+}
+function rgbToHSL(r,g,b) {
+  r/=255; g/=255; b/=255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), delta=max-min;
+  let h=0, s=0, l=(max+min)/2;
+  if (delta) {
+    s = delta / (1 - Math.abs(2*l-1));
+    h = max===r ? ((g-b)/delta)%6 : max===g ? (b-r)/delta+2 : (r-g)/delta+4;
+    h = Math.round(h*60); if(h<0) h+=360;
+  }
+  return { h, s: +(s*100).toFixed(1), l: +(l*100).toFixed(1) };
+}
+function hslToHex(h,s,l) {
+  s/=100; l/=100;
+  const c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2;
+  let r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  return rgbToHex(Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255));
+}
+function mix(hex1,hex2,t) {
+  const a=hexToRGB(hex1), b=hexToRGB(hex2);
+  return rgbToHex(Math.round(a.r+(b.r-a.r)*t),Math.round(a.g+(b.g-a.g)*t),Math.round(a.b+(b.b-a.b)*t));
+}
+function contrastColor(hex) {
+  const {r,g,b}=hexToRGB(hex);
+  return (0.299*r+0.587*g+0.114*b)/255 > 0.55 ? '#1e293b' : '#ffffff';
 }
 
-function rgbToHSL(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin, h = 0, s = 0, l = 0;
-  if (delta === 0) h = 0;
-  else if (cmax === r) h = ((g - b) / delta) % 6;
-  else if (cmax === g) h = (b - r) / delta + 2;
-  else h = (r - g) / delta + 4;
-  h = Math.round(h * 60);
-  if (h < 0) h += 360;
-  l = (cmax + cmin) / 2;
-  s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
-  s = +(s * 100).toFixed(1);
-  l = +(l * 100).toFixed(1);
-  return {h, s, l};
+/* ─── small copy chip ───────────────────────────────────────── */
+function CopyChip({ text }) {
+  const [done, setDone] = useState(false);
+  const copy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setDone(true);
+    setTimeout(()=>setDone(false),1500);
+  };
+  return (
+    <button className={`ct-copy-chip ${done?'done':''}`} onClick={copy} title={`Copy ${text}`}>
+      {done ? <Check size={11}/> : <Copy size={11}/>}
+    </button>
+  );
 }
 
-function hslToHex(h, s, l) {
-  s /= 100; l /= 100;
-  let c = (1 - Math.abs(2 * l - 1)) * s,
-      x = c * (1 - Math.abs((h / 60) % 2 - 1)),
-      m = l - c/2, r = 0, g = 0, b = 0;
-  if (0 <= h && h < 60) { r = c; g = x; b = 0; }
-  else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
-  else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
-  else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
-  else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
-  else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
-  r = Math.round((r + m) * 255);
-  g = Math.round((g + m) * 255);
-  b = Math.round((b + m) * 255);
-  return rgbToHex(r, g, b);
+/* ─── shade / tint row ──────────────────────────────────────── */
+function ShadeRow({ label, swatches }) {
+  return (
+    <div className="ct-shade-group">
+      <div className="ct-shade-label">{label}</div>
+      <div className="ct-shade-track">
+        {swatches.map((hex,i) => (
+          <div key={i} className="ct-swatch" style={{background:hex}} title={hex}>
+            <span className="ct-swatch-hex" style={{color:contrastColor(hex)}}>{hex.toUpperCase()}</span>
+            <CopyChip text={hex.toUpperCase()} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-// Mix color with black or white. Percentage is 0-1 (0 = original, 1 = solid black/white)
-function mixColor(colorHex, mixColorHex, amount) {
-  const c1 = hexToRGB(colorHex);
-  const c2 = hexToRGB(mixColorHex);
-  const r = Math.round(c1.r + (c2.r - c1.r) * amount);
-  const g = Math.round(c1.g + (c2.g - c1.g) * amount);
-  const b = Math.round(c1.b + (c2.b - c1.b) * amount);
-  return rgbToHex(r, g, b);
-}
-
+/* ─── main component ────────────────────────────────────────── */
 export default function ColorTools() {
-  const [baseHex, setBaseHex] = useState('#3a5582');
-  const [rgb, setRgb] = useState(hexToRGB('#3a5582'));
+  const [baseHex, setBaseHex] = useState('#6366f1');
+  const [rgb, setRgb] = useState(hexToRGB('#6366f1'));
+  const [copiedMain, setCopiedMain] = useState(false);
+  const [activeTab, setActiveTab] = useState('picker'); // 'picker' | 'shades' | 'harmony'
 
-  useEffect(() => {
-    setRgb(hexToRGB(baseHex));
-  }, [baseHex]);
+  useEffect(() => { setRgb(hexToRGB(baseHex)); }, [baseHex]);
 
-  const handleRgbChange = (channel, value) => {
-    const newRgb = { ...rgb, [channel]: Number(value) };
-    setRgb(newRgb);
-    setBaseHex(rgbToHex(newRgb.r, newRgb.g, newRgb.b));
+  const handleRgbChange = (ch, val) => {
+    const next = { ...rgb, [ch]: Math.max(0,Math.min(255,Number(val))) };
+    setRgb(next);
+    setBaseHex(rgbToHex(next.r,next.g,next.b));
   };
 
   const hsl = rgbToHSL(rgb.r, rgb.g, rgb.b);
 
-  const shades = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map(amount => mixColor(baseHex, '#000000', amount));
-  const tints = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map(amount => mixColor(baseHex, '#ffffff', amount));
+  const shades = Array.from({length:10},(_,i)=>mix(baseHex,'#000000',i*0.09));
+  const tints  = Array.from({length:10},(_,i)=>mix(baseHex,'#ffffff',i*0.09));
 
-  const handleCopy = (color) => {
-    navigator.clipboard.writeText(color);
+  const harmonyAngles = { Complementary:[180], Triadic:[120,240], Analogous:[30,60,-30,-60], 'Split-Comp':[150,210] };
+  const harmonyColors = Object.entries(harmonyAngles).map(([name,angles])=>({
+    name,
+    colors: [baseHex, ...angles.map(a=>hslToHex((hsl.h+a+360)%360,hsl.s,hsl.l))]
+  }));
+
+  const copyMain = () => {
+    navigator.clipboard.writeText(baseHex.toUpperCase());
+    setCopiedMain(true); setTimeout(()=>setCopiedMain(false),1500);
   };
 
+  const contrast = contrastColor(baseHex);
+
   return (
-    <div>
-      <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Advanced Color Tools</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Fine-tune your colors and generate precise 10-step shades & tints.</p>
-
-      <div className="advanced-picker">
-        <div style={{ flex: '0 0 200px' }}>
-          <div style={{ width: '100%', aspectRatio: '1', backgroundColor: baseHex, borderRadius: 'var(--border-radius-lg)', boxShadow: 'var(--shadow-sm)', marginBottom: '1rem' }} />
-          <input 
-            type="color" 
-            value={baseHex} 
-            onChange={(e) => setBaseHex(e.target.value)}
-            style={{ width: '100%', height: '40px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-          />
+    <div className="ct-page">
+      {/* Hero color display */}
+      <div className="ct-hero" style={{ background: `linear-gradient(135deg, ${baseHex}, ${hslToHex((hsl.h+40)%360,hsl.s,hsl.l)})` }}>
+        <div className="ct-hero-inner">
+          <div className="ct-hero-hex" style={{ color: contrast }}>{baseHex.toUpperCase()}</div>
+          <div className="ct-hero-sub" style={{ color: contrast }}>rgb({rgb.r}, {rgb.g}, {rgb.b}) · hsl({hsl.h}°, {hsl.s}%, {hsl.l}%)</div>
+          <button className="ct-hero-copy" style={{ color: contrast, borderColor: contrast }} onClick={copyMain}>
+            {copiedMain ? <><Check size={14}/> Copied!</> : <><Copy size={14}/> Copy HEX</>}
+          </button>
         </div>
-
-        <div className="picker-sliders">
-          <div className="slider-row">
-            <span className="slider-label" style={{ color: '#ef4444' }}>R</span>
-            <input type="range" min="0" max="255" value={rgb.r} onChange={(e) => handleRgbChange('r', e.target.value)} />
-            <input type="number" className="input-field rgb-input" value={rgb.r} onChange={(e) => handleRgbChange('r', e.target.value)} />
-          </div>
-          <div className="slider-row">
-            <span className="slider-label" style={{ color: '#10b981' }}>G</span>
-            <input type="range" min="0" max="255" value={rgb.g} onChange={(e) => handleRgbChange('g', e.target.value)} />
-            <input type="number" className="input-field rgb-input" value={rgb.g} onChange={(e) => handleRgbChange('g', e.target.value)} />
-          </div>
-          <div className="slider-row">
-            <span className="slider-label" style={{ color: '#3b82f6' }}>B</span>
-            <input type="range" min="0" max="255" value={rgb.b} onChange={(e) => handleRgbChange('b', e.target.value)} />
-            <input type="number" className="input-field rgb-input" value={rgb.b} onChange={(e) => handleRgbChange('b', e.target.value)} />
-          </div>
-        </div>
-
-        <div className="color-info-table">
-          <div className="color-info-row">
-            <div className="color-info-cell label">HEX</div>
-            <div className="color-info-cell" style={{fontFamily: 'monospace'}}>{baseHex.toUpperCase()}</div>
-          </div>
-          <div className="color-info-row">
-            <div className="color-info-cell label">RGB</div>
-            <div className="color-info-cell" style={{fontFamily: 'monospace'}}>rgb({rgb.r}, {rgb.g}, {rgb.b})</div>
-          </div>
-          <div className="color-info-row">
-            <div className="color-info-cell label">HSL</div>
-            <div className="color-info-cell" style={{fontFamily: 'monospace'}}>hsl({hsl.h}, {hsl.s}%, {hsl.l}%)</div>
-          </div>
-        </div>
+        {/* Color picker inside hero */}
+        <label className="ct-hero-picker-wrap" title="Pick a color">
+          <input type="color" value={baseHex} onChange={e=>setBaseHex(e.target.value)} className="ct-hero-picker" />
+          <span className="ct-hero-picker-label" style={{ color: contrast }}>Change Color</span>
+        </label>
       </div>
 
-      <div className="shade-scale-container">
-        <h3 style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
-          <span>10-Step Shade Generator</span>
-          <span style={{color: 'var(--text-muted)'}}>Base: {baseHex.toUpperCase()}</span>
-        </h3>
-        
-        {/* Shades (Darkening) */}
-        <div style={{ display: 'flex', width: '100%', marginBottom: '0.5rem', padding: '0 0.5rem' }}>
-          {['Base', '10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%'].map((lbl, i) => (
-            <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>{lbl}</div>
-          ))}
-        </div>
-        <div className="shade-row">
-          {shades.map((hex, i) => (
-            <div key={i} className="shade-block" style={{ backgroundColor: hex }} onClick={() => handleCopy(hex)}>
-              <span className="shade-hex">{hex.slice(1)}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Tints (Lightening) */}
-        <div className="shade-row" style={{ marginTop: '1rem' }}>
-          {tints.map((hex, i) => (
-            <div key={i} className="shade-block" style={{ backgroundColor: hex }} onClick={() => handleCopy(hex)}>
-              <span className="shade-hex" style={{ color: i > 4 ? '#1e293b' : 'rgba(255,255,255,0.9)', textShadow: i > 4 ? 'none' : '0 1px 2px rgba(0,0,0,0.5)' }}>
-                {hex.slice(1)}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Tab bar */}
+      <div className="ct-tabs">
+        {[
+          { id: 'picker', label: 'Color Picker', icon: <Sliders size={16} /> },
+          { id: 'shades', label: 'Shades & Tints', icon: <Palette size={16} /> },
+          { id: 'harmony', label: 'Harmony', icon: <Sun size={16} /> }
+        ].map(({ id, label, icon }) => (
+          <button key={id} className={`ct-tab ${activeTab===id?'active':''}`} onClick={()=>setActiveTab(id)}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              {icon} {label}
+            </span>
+          </button>
+        ))}
       </div>
+
+      {/* Tab: Picker */}
+      {activeTab === 'picker' && (
+        <div className="ct-panel">
+          <div className="ct-picker-grid">
+            {/* RGB sliders */}
+            <div className="ct-picker-sliders">
+              <div className="ct-picker-title">RGB Sliders</div>
+              {[
+                {ch:'r', label:'Red',   color:'#ef4444', track:'linear-gradient(to right,#000,#ff0000)'},
+                {ch:'g', label:'Green', color:'#10b981', track:'linear-gradient(to right,#000,#00ff00)'},
+                {ch:'b', label:'Blue',  color:'#3b82f6', track:'linear-gradient(to right,#000,#0000ff)'},
+              ].map(({ch,label,color,track})=>(
+                <div key={ch} className="ct-slider-row">
+                  <span className="ct-slider-label" style={{color}}>{label[0]}</span>
+                  <div className="ct-slider-wrap">
+                    <input
+                      type="range" min="0" max="255" value={rgb[ch]}
+                      onChange={e=>handleRgbChange(ch,e.target.value)}
+                      className="ct-rgb-slider"
+                      style={{'--track':track}}
+                    />
+                  </div>
+                  <input
+                    type="number" min="0" max="255" value={rgb[ch]}
+                    onChange={e=>handleRgbChange(ch,e.target.value)}
+                    className="ct-num-input"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Info table */}
+            <div className="ct-info-card">
+              <div className="ct-picker-title">Color Values</div>
+              <div className="ct-info-table">
+                {[
+                  ['HEX', baseHex.toUpperCase()],
+                  ['RGB', `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`],
+                  ['HSL', `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`],
+                  ['OKLCH', `${Math.round(hsl.l)}% ${(hsl.s/100*0.4).toFixed(2)} ${hsl.h}`],
+                ].map(([fmt,val])=>(
+                  <div key={fmt} className="ct-info-row">
+                    <span className="ct-info-fmt">{fmt}</span>
+                    <span className="ct-info-val">{val}</span>
+                    <CopyChip text={val}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Shades & Tints */}
+      {activeTab === 'shades' && (
+        <div className="ct-panel">
+          <ShadeRow label="Shades (darker)" swatches={shades} />
+          <ShadeRow label="Tints (lighter)" swatches={tints} />
+        </div>
+      )}
+
+      {/* Tab: Harmony */}
+      {activeTab === 'harmony' && (
+        <div className="ct-panel">
+          <div className="ct-harmony-grid">
+            {harmonyColors.map(({name,colors})=>(
+              <div key={name} className="ct-harmony-card">
+                <div className="ct-harmony-swatches">
+                  {colors.map((c,i)=>(
+                    <div key={i} className="ct-harmony-swatch" style={{background:c}} title={c}>
+                      <CopyChip text={c.toUpperCase()}/>
+                    </div>
+                  ))}
+                </div>
+                <div className="ct-harmony-name">{name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

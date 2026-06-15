@@ -31,23 +31,23 @@ export default function ShadowGenerator({ shadows, onChange }) {
         </div>
         <div className="layer-list">
           {shadows.map((s, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`layer-item ${i === activeIndex ? 'active' : ''}`}
               onClick={() => setActiveIndex(i)}
             >
               <div className="layer-info">
-                <GripVertical size={16} style={{opacity: 0.5}} />
-                <div 
-                  className="color-swatch" 
-                  style={{ backgroundColor: s.color, opacity: s.opacity }} 
+                <GripVertical size={16} style={{ opacity: 0.5 }} />
+                <div
+                  className="color-swatch"
+                  style={{ backgroundColor: s.color, opacity: s.opacity }}
                 />
-                <span className="control-label" style={{fontSize: '0.875rem'}}>
+                <span className="control-label" style={{ fontSize: '0.875rem' }}>
                   {s.inset ? 'Inset ' : ''}Layer {i + 1}
                 </span>
               </div>
-              <button 
-                className="btn-icon btn-danger" 
+              <button
+                className="btn-icon btn-danger"
                 onClick={(e) => { e.stopPropagation(); removeShadow(i); if (activeIndex >= shadows.length - 1) setActiveIndex(Math.max(0, shadows.length - 2)); }}
                 disabled={shadows.length <= 1}
               >
@@ -64,8 +64,8 @@ export default function ShadowGenerator({ shadows, onChange }) {
         <>
           <div className="control-group">
             <label className="flex-row">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={activeShadow.inset}
                 onChange={(e) => updateShadow(activeIndex, 'inset', e.target.checked)}
               />
@@ -108,7 +108,7 @@ export default function ShadowGenerator({ shadows, onChange }) {
           <div className="control-group">
             <div className="control-header">
               <span className="control-label">Color</span>
-              <input type="color" value={activeShadow.color} onChange={(e) => updateShadow(activeIndex, 'color', e.target.value)} />
+              <input type="color" className="color-picker-input" value={activeShadow.color} onChange={(e) => updateShadow(activeIndex, 'color', e.target.value)} />
             </div>
           </div>
 
