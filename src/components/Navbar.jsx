@@ -1,8 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Palette, Droplet, Box, SlidersHorizontal, Search } from 'lucide-react';
+import { Palette, Droplet, Box, SlidersHorizontal, Search, User, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
-export default function Navbar({ searchQuery, setSearchQuery }) {
+export default function Navbar({ searchQuery, setSearchQuery, onOpenAuth }) {
+  const { user } = useAuth();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <nav className="navbar">
       <div className="container">
@@ -37,9 +45,16 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="btn btn-outline" style={{ borderRadius: '20px' }}>
-            Sign In
-          </button>
+          
+          {user ? (
+            <button className="btn btn-outline" style={{ borderRadius: '20px' }} onClick={handleSignOut} title={user.email}>
+              <LogOut size={16} /> Sign Out
+            </button>
+          ) : (
+            <button className="btn btn-primary" style={{ borderRadius: '20px' }} onClick={onOpenAuth}>
+              <User size={16} /> Sign In
+            </button>
+          )}
         </div>
       </div>
     </nav>

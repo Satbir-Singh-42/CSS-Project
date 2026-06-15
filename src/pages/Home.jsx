@@ -1,29 +1,47 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Heart, Sparkles, Flame, Shuffle, FolderHeart, Database } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
-const MOCK_PALETTES = [
-  { id: 1, colors: ['#ffb703', '#fb8500', '#023047', '#219ebc'], likes: 1845, time: 2, tag: 'Warm' },
-  { id: 2, colors: ['#52b788', '#74c69d', '#95d5b2', '#d8f3dc'], likes: 1250, time: 5, tag: 'Pastel' },
-  { id: 3, colors: ['#e07a5f', '#3d405b', '#81b29a', '#f2cc8f'], likes: 934, time: 12, tag: 'Retro' },
-  { id: 4, colors: ['#7400b8', '#6930c3', '#5e60ce', '#5390d9'], likes: 2100, time: 24, tag: 'Neon' },
-  { id: 5, colors: ['#000000', '#14213d', '#fca311', '#e5e5e5'], likes: 1450, time: 48, tag: 'Dark' },
-  { id: 6, colors: ['#ff595e', '#ffca3a', '#8ac926', '#1982c4'], likes: 890, time: 72, tag: 'Warm' },
-  { id: 7, colors: ['#a8dadc', '#457b9d', '#1d3557', '#f1faee'], likes: 2310, time: 96, tag: 'Cold' },
-  { id: 8, colors: ['#ffafcc', '#ffc8dd', '#cdb4db', '#bde0fe'], likes: 3240, time: 120, tag: 'Pastel' },
-  { id: 9, colors: ['#283618', '#606c38', '#fefae0', '#dda15e'], likes: 1670, time: 168, tag: 'Vintage' },
-  { id: 10, colors: ['#22223b', '#4a4e69', '#9a8c98', '#c9ada7'], likes: 1120, time: 168, tag: 'Vintage' },
-  { id: 11, colors: ['#fca311', '#14213d', '#000000', '#e5e5e5'], likes: 980, time: 336, tag: 'Warm' },
-  { id: 12, colors: ['#03045e', '#0077b6', '#00b4d8', '#90e0ef'], likes: 745, time: 336, tag: 'Cold' },
-];
+
+// Simple deterministic random number generator based on a string seed
+function seededRandom(seedStr) {
+  let h = 0xdeadbeef;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = Math.imul(h ^ seedStr.charCodeAt(i), 2654435761);
+  }
+  return function() {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296; // Return float between 0 and 1
+  }
+}
+
+// Defensive helper to fix manually imported named colors that incorrectly have a # prefix (e.g. #BURLYWOOD)
+const formatColor = (c) => {
+  if (!c) return '#000000';
+  if (c.startsWith('#') && c.length > 7) {
+    return c.substring(1); // Return 'BURLYWOOD' instead of '#BURLYWOOD'
+  }
+  return c;
+};
 
 export default function Home({ searchQuery }) {
+  const { user } = useAuth();
   const [palettes, setPalettes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('New');
   const [activeTag, setActiveTag] = useState(null);
-  const [likedIds, setLikedIds] = useState(new Set());
+  const [likedIds, setLikedIds] = useState(() => {
+    const saved = localStorage.getItem('likedPalettes');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   const [toastMessage, setToastMessage] = useState('');
+
+  // Persist collection to cache whenever it changes
+  useEffect(() => {
+    localStorage.setItem('likedPalettes', JSON.stringify([...likedIds]));
+  }, [likedIds]);
 
   // Fetch from Supabase OR use Mock Data
   useEffect(() => {
@@ -60,13 +78,12 @@ export default function Home({ searchQuery }) {
           setPalettes(formattedData);
         } catch (error) {
           console.error("Error fetching from Supabase:", error);
-          setToastMessage("Database error. Falling back to local data.");
+          setToastMessage("Database error.");
           setTimeout(() => setToastMessage(''), 3000);
-          setPalettes(MOCK_PALETTES);
+          setPalettes([]);
         }
       } else {
-        // Fallback to mock data immediately
-        setPalettes(MOCK_PALETTES);
+        setPalettes([]);
       }
       setIsLoading(false);
     }
@@ -125,6 +142,26 @@ export default function Home({ searchQuery }) {
   const displayPalettes = useMemo(() => {
     let result = [...palettes];
 
+    // 1. FIRST STEP: Deterministically choose exactly 50 palettes for the day
+    if (result.length > 50) {
+      const dateSeed = new Date().toDateString();
+      const rand = seededRandom(dateSeed);
+      
+      // Shuffle array deterministically so it's random but locked for 24 hours
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      
+      // Keep only the top 50 as the daily pool
+      result = result.slice(0, 50);
+    }
+
+    // 2. NOW apply all user filters strictly on those 50 palettes
+    if (activeTag) {
+      result = result.filter(p => p.tag === activeTag);
+    }
+    
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(p => 
@@ -136,12 +173,18 @@ export default function Home({ searchQuery }) {
     if (activeFilter === 'Collection') {
       result = result.filter(p => likedIds.has(p.id));
     } else if (activeFilter === 'Random') {
-      // In a real app we'd query Supabase with a random RPC, but client-side is fine for now
+      // Shuffle the 50 palettes purely randomly on every click
       result.sort(() => Math.random() - 0.5);
+    } else if (activeFilter === 'Popular') {
+      // Sort the 50 palettes by highest likes
+      result.sort((a, b) => b.likes - a.likes);
+    } else if (activeFilter === 'New') {
+      // Sort the 50 palettes by newest creation date
+      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
     return result;
-  }, [palettes, searchQuery, activeFilter, likedIds]);
+  }, [palettes, activeFilter, activeTag, searchQuery, likedIds]);
 
   return (
     <div style={{ paddingBottom: '4rem', position: 'relative' }}>
@@ -162,12 +205,6 @@ export default function Home({ searchQuery }) {
       <section className="hero-section">
         <h1>Discover Beautiful Color Schemes</h1>
         <p>A curated collection of hand-picked palettes for your next design project.</p>
-        
-        {/* Supabase Status Indicator */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', padding: '0.5rem 1rem', background: isSupabaseConfigured ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: isSupabaseConfigured ? '#10b981' : '#d97706', borderRadius: '100px', fontSize: '0.85rem', fontWeight: 600 }}>
-          <Database size={14} />
-          {isSupabaseConfigured ? 'Connected to Live Supabase Database' : 'Using Local Mock Database (Supabase not configured)'}
-        </div>
       </section>
 
       {/* Horizontal Filter Bar */}
@@ -188,10 +225,12 @@ export default function Home({ searchQuery }) {
             onClick={() => {setActiveFilter('Random'); setActiveTag(null);}}
           ><Shuffle size={16}/> Random</button>
           
-          <button 
-            className={`filter-pill ${activeFilter === 'Collection' && !activeTag ? 'active' : ''}`}
-            onClick={() => {setActiveFilter('Collection'); setActiveTag(null);}}
-          ><FolderHeart size={16}/> Collection ({likedIds.size})</button>
+          {user && (
+            <button 
+              className={`filter-pill ${activeFilter === 'Collection' && !activeTag ? 'active' : ''}`}
+              onClick={() => {setActiveFilter('Collection'); setActiveTag(null);}}
+            ><FolderHeart size={16}/> Collection ({likedIds.size})</button>
+          )}
         </div>
         
         <div className="filter-divider"></div>
@@ -211,9 +250,16 @@ export default function Home({ searchQuery }) {
 
       {/* Unique Palette Grid */}
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem auto' }}></div>
-          Loading palettes...
+        <div className="unique-palette-grid">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="unique-palette-card skeleton-card">
+              <div className="skeleton-color-row skeleton-shimmer"></div>
+              <div className="skeleton-info">
+                <div className="skeleton-text skeleton-shimmer"></div>
+                <div className="skeleton-circle skeleton-shimmer"></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : displayPalettes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
@@ -226,27 +272,23 @@ export default function Home({ searchQuery }) {
             const isLiked = likedIds.has(palette.id);
             return (
               <div key={palette.id} className="unique-palette-card">
-                <div 
-                  className="main-color-area" 
-                  style={{ backgroundColor: palette.colors[0] }}
-                  onClick={(e) => handleCopy(e, palette.colors[0])}
-                >
-                   <span className="hex-badge">{palette.colors[0].toUpperCase()}</span>
-                </div>
-                <div className="accent-colors-container">
-                  {palette.colors.slice(1).map((color, idx) => (
+                <div className="palette-colors-row">
+                  {palette.colors.map((color, index) => (
                     <div 
-                      key={idx} 
-                      className="accent-circle" 
-                      style={{ backgroundColor: color }}
+                      key={index}
+                      className="palette-color-block" 
+                      style={{ backgroundColor: formatColor(color) }}
                       onClick={(e) => handleCopy(e, color)}
                     >
-                      <div className="tooltip">{color.toUpperCase()}</div>
+                      <div className="tooltip">{formatColor(color).toUpperCase()}</div>
                     </div>
                   ))}
                 </div>
                 
-                <div className="palette-footer" style={{ marginTop: '1rem', borderTop: 'none', padding: '0 1.5rem 1.5rem 1.5rem', justifyContent: 'flex-end' }}>
+                <div className="palette-footer" style={{ marginTop: '1rem', borderTop: 'none', padding: '0 1.5rem 1.5rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
+                    {palette.likes.toLocaleString()} likes
+                  </div>
                   <button 
                     className="like-btn" 
                     title="Save to Collection"

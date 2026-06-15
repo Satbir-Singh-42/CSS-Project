@@ -228,45 +228,52 @@
   box-shadow: var(--shadow-hover);
 }
 
-.main-color-area {
-  height: 180px;
+.palette-colors-row {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s;
+  height: 200px;
 }
 
-.main-color-area:hover {
-  opacity: 0.95;
-}
-
-.accent-colors-container {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: -24px; /* Pull up to overlap */
-  padding-bottom: 1rem;
+.palette-color-block {
+  flex: 1;
+  width: 100%;
   position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: -1px; /* Fix for browser subpixel rendering gaps */
+}
+
+.palette-color-block:hover {
+  transform: scaleX(1.05);
   z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 4px;
 }
 
-.accent-circle {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 4px solid var(--bg-secondary);
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.palette-color-block .tooltip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a1a1a;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  white-space: nowrap;
+  border: none;
+  z-index: 10;
 }
 
-.accent-circle:hover {
-  transform: translateY(-4px) scale(1.1);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-  z-index: 3;
+.palette-color-block:hover .tooltip {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .accent-circle .tooltip {
@@ -622,4 +629,252 @@ input[type="range"]::-webkit-slider-thumb:hover {
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* Auth Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-xl);
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--bg-color);
+  color: var(--text-main);
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.modal-header h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.modal-header p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.input-group {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.85rem 1rem 0.85rem 2.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  font-size: 0.95rem;
+  background: var(--bg-color);
+  transition: all 0.2s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: var(--bg-secondary);
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 0.85rem;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.auth-divider {
+  margin: 1.5rem 0 1rem 0;
+  text-align: center;
+  position: relative;
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--border-color);
+  z-index: 1;
+}
+
+.auth-divider span {
+  background: var(--bg-secondary);
+  padding: 0 1rem;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+}
+
+.oauth-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.oauth-btn {
+  flex: 1;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.oauth-btn:hover {
+  background: #e2e8f0;
+}
+
+.modal-footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  padding: 0;
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+.modal-alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-md);
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modal-alert.error {
+  background: rgba(244, 63, 94, 0.1);
+  color: #e11d48;
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.modal-alert.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton Loading Cards */
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--bg-color) 25%, var(--border-color) 50%, var(--bg-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-color-row {
+  height: 200px;
+  width: 100%;
+}
+
+.skeleton-info {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 80px;
+  border-radius: 4px;
+}
+
+.skeleton-circle {
+  height: 32px;
+  width: 32px;
+  border-radius: 50%;
 }
