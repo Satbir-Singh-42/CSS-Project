@@ -186,7 +186,10 @@ export default function GradientGenerator({ config, onChange }) {
             <div
               key={stop.id}
               className={`gg-stop-handle ${stop.id === selectedId ? 'selected' : ''}`}
-              style={{ left: `${stop.position}%`, background: stop.color }}
+              style={{ 
+                left: `calc(${stop.position}% + ${11 - (stop.position / 100) * 22}px)`, 
+                backgroundColor: stop.color 
+              }}
               onMouseDown={e => handleMouseDown(e, stop.id)}
               onTouchStart={e => handleTouchStart(e, stop.id)}
               title={`${stop.position}%`}
@@ -199,7 +202,7 @@ export default function GradientGenerator({ config, onChange }) {
           {sorted.map(stop => (
             <div key={stop.id}
               className={`gg-track-label ${stop.id === selectedId ? 'selected' : ''}`}
-              style={{ left: `${stop.position}%` }}>
+              style={{ left: `calc(${stop.position}% + ${11 - (stop.position / 100) * 22}px)` }}>
               {stop.position}%
             </div>
           ))}
@@ -216,10 +219,27 @@ export default function GradientGenerator({ config, onChange }) {
             className="gg-color-input"
             title="Pick color"
           />
-          <div className="gg-selected-stop-info">
-            <span className="gg-label">Selected stop</span>
-            <span className="gg-value" style={{ color: selectedStop.color }}>
-              {selectedStop.color.toUpperCase()} · {selectedStop.position}%
+          <div className="gg-selected-stop-info" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+            <span className="gg-label" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Color: </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--bg-secondary)', padding: '0.25rem 0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>#</span>
+              <input
+                type="text"
+                value={selectedStop.color.replace('#', '').toUpperCase()}
+                onChange={e => {
+                  let val = e.target.value.replace(/#/g, '');
+                  val = val.slice(0, 6);
+                  if (/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(val)) {
+                    updateStop(selectedStop.id, 'color', '#' + val);
+                  }
+                }}
+                className="ct-num-input"
+                style={{ width: '80px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', fontWeight: 700, padding: 0, letterSpacing: '1px' }}
+                maxLength={7}
+              />
+            </div>
+            <span className="gg-value" style={{ color: 'var(--text-muted)', fontFamily: 'monospace', marginLeft: 'auto' }}>
+              {selectedStop.position}%
             </span>
           </div>
           <button
