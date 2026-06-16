@@ -144,12 +144,19 @@
   margin: 0 auto;
 }
 
+.filter-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 3rem;
+}
+
 .filter-bar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  margin-bottom: 3rem;
   flex-wrap: wrap;
 }
 
@@ -502,6 +509,23 @@ input[type="range"] {
   background: var(--border-color);
   border-radius: 3px;
   outline: none;
+}
+
+/* Gradient stop sliders: hide native track so gradient bg shows */
+.gg-stop-track-wrap input[type="range"] {
+  background: transparent;
+}
+
+.gg-stop-track-wrap input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.gg-stop-track-wrap input[type="range"]::-moz-range-track {
+  background: transparent;
+  height: 6px;
+  border-radius: 3px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1132,7 +1156,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-radius: 28px;
   padding: 2.5rem;
   width: 100%;
-  max-width: 580px;
+  max-width: 820px;
   box-shadow:
     0 32px 64px -12px rgba(0,0,0,0.15),
     0 0 0 1px rgba(255,255,255,0.4) inset;
@@ -1181,30 +1205,81 @@ input[type="range"]::-webkit-slider-thumb:hover {
   margin-bottom: 0.25rem;
 }
 
-.gg-presets {
+/* ── Type Tabs ── */
+.gg-type-tabs {
   display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  background: rgba(0,0,0,0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 0.5rem;
 }
 
-.gg-preset-chip {
-  height: 36px;
-  padding: 0 1rem;
-  border-radius: 100px;
+.gg-type-tab {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.35);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  transition: transform 0.15s, box-shadow 0.15s;
-  flex-shrink: 0;
+  transition: all 0.2s;
 }
 
-.gg-preset-chip:hover {
-  transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+.gg-type-tab.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ── Preset Grid ── */
+.gg-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 0.75rem;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.gg-preset-grid::-webkit-scrollbar { width: 4px; }
+.gg-preset-grid::-webkit-scrollbar-track { background: transparent; }
+.gg-preset-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+.gg-swatch {
+  height: 56px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+
+.gg-swatch:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.gg-swatch-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 .gg-divider {
@@ -1362,9 +1437,105 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-radius: 6px;
 }
 
-.gg-stop-track-wrap { flex: 1; }
+/* ── Unified gradient stop track ── */
+.gg-unified-track-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  user-select: none;
+}
 
-.gg-stop-slider { width: 100%; }
+.gg-unified-track {
+  position: relative;
+  height: 36px;
+  border-radius: 100px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18), inset 0 1px 3px rgba(0,0,0,0.12);
+  cursor: crosshair;
+}
+
+/* Draggable handle on the track */
+.gg-stop-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s, transform 0.1s;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gg-stop-handle:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.gg-stop-handle.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.6), 0 2px 12px rgba(0,0,0,0.3);
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 3;
+}
+
+/* Small downward tick below each handle */
+.gg-handle-tick {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 6px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 2px;
+}
+
+/* Percentage labels below track */
+.gg-track-labels {
+  position: relative;
+  height: 20px;
+  margin-top: 4px;
+}
+
+.gg-track-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-muted);
+  transition: color 0.15s;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gg-track-label.selected {
+  color: var(--primary);
+}
+
+/* Selected stop controls row */
+.gg-selected-stop {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(0,0,0,0.04);
+  border-radius: 14px;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.25rem;
+  border: 1.5px solid rgba(99,102,241,0.2);
+}
+
+.gg-selected-stop-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
 
 .gg-stop-pos {
   font-size: 0.78rem;
@@ -1374,6 +1545,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   width: 36px;
   text-align: right;
   flex-shrink: 0;
+
 }
 
 /* =============================================
@@ -1570,13 +1742,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
    ============================================= */
 
 .ct-page {
-  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   padding-bottom: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* Hero */
 .ct-hero {
+  width: 100% !important;
+  max-width: 100% !important;
   border-radius: 24px;
   padding: 2.5rem;
   display: flex;
@@ -1663,6 +1840,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Tabs */
 .ct-tabs {
+  width: 100% !important;
+  max-width: 100% !important;
   display: flex;
   gap: 0.5rem;
   background: var(--bg-secondary);
@@ -1693,6 +1872,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Panel */
 .ct-panel {
+  width: 100% !important;
+  max-width: 100% !important;
   background: var(--bg-secondary);
   border-radius: 20px;
   padding: 2rem;

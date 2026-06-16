@@ -8,9 +8,9 @@ export default function Gradients() {
     type: 'linear',
     angle: 135,
     stops: [
-      { color: '#6366f1', position: 0 },
-      { color: '#ec4899', position: 50 },
-      { color: '#f43f5e', position: 100 }
+      { id: 1, color: '#6366f1', position: 0 },
+      { id: 2, color: '#ec4899', position: 50 },
+      { id: 3, color: '#f43f5e', position: 100 }
     ]
   });
 
@@ -19,9 +19,12 @@ export default function Gradients() {
     .map(s => `${s.color} ${s.position}%`)
     .join(', ');
 
-  const backgroundString = gradientConfig.type === 'linear'
-    ? `linear-gradient(${gradientConfig.angle}deg, ${stopsString})`
-    : `radial-gradient(circle, ${stopsString})`;
+  const backgroundString =
+    gradientConfig.type === 'linear'
+      ? `linear-gradient(${gradientConfig.angle}deg, ${stopsString})`
+      : gradientConfig.type === 'conic'
+      ? `conic-gradient(from ${gradientConfig.angle}deg, ${stopsString})`
+      : `radial-gradient(circle, ${stopsString})`;
 
   return (
     <>

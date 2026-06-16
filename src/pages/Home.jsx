@@ -218,44 +218,48 @@ export default function Home({ searchQuery }) {
         <p>A curated collection of hand-picked palettes for your next design project.</p>
       </section>
 
-      {/* Horizontal Filter Bar */}
-      <div className="filter-bar">
-        <div className="filter-group">
-          <button
-            className={`filter-pill ${activeFilter === 'New' && !activeTag ? 'active' : ''}`}
-            onClick={() => { setActiveFilter('New'); setActiveTag(null); }}
-          ><Sparkles size={16} /> New</button>
-
-          <button
-            className={`filter-pill ${activeFilter === 'Popular' && !activeTag ? 'active' : ''}`}
-            onClick={() => { setActiveFilter('Popular'); setActiveTag(null); }}
-          ><Flame size={16} /> Popular</button>
-
-          <button
-            className={`filter-pill ${activeFilter === 'Random' && !activeTag ? 'active' : ''}`}
-            onClick={() => { setActiveFilter('Random'); setActiveTag(null); }}
-          ><Shuffle size={16} /> Random</button>
-
-          {user && (
+      {/* Horizontal Filter Bar — Two Rows */}
+      <div className="filter-bar-wrapper">
+        {/* Row 1: Main filters */}
+        <div className="filter-bar">
+          <div className="filter-group">
             <button
-              className={`filter-pill ${activeFilter === 'Collection' && !activeTag ? 'active' : ''}`}
-              onClick={() => { setActiveFilter('Collection'); setActiveTag(null); }}
-            ><FolderHeart size={16} /> Collection ({likedIds.size})</button>
-          )}
+              className={`filter-pill ${activeFilter === 'New' && !activeTag ? 'active' : ''}`}
+              onClick={() => { setActiveFilter('New'); setActiveTag(null); }}
+            ><Sparkles size={16} /> New</button>
+
+            <button
+              className={`filter-pill ${activeFilter === 'Popular' && !activeTag ? 'active' : ''}`}
+              onClick={() => { setActiveFilter('Popular'); setActiveTag(null); }}
+            ><Flame size={16} /> Popular</button>
+
+            <button
+              className={`filter-pill ${activeFilter === 'Random' && !activeTag ? 'active' : ''}`}
+              onClick={() => { setActiveFilter('Random'); setActiveTag(null); }}
+            ><Shuffle size={16} /> Random</button>
+
+            {user && (
+              <button
+                className={`filter-pill ${activeFilter === 'Collection' && !activeTag ? 'active' : ''}`}
+                onClick={() => { setActiveFilter('Collection'); setActiveTag(null); }}
+              ><FolderHeart size={16} /> Collection ({likedIds.size})</button>
+            )}
+          </div>
         </div>
 
-        <div className="filter-divider"></div>
-
-        <div className="filter-group">
-          {['Pastel', 'Vintage', 'Retro', 'Neon', 'Dark', 'Warm', 'Cold'].map(tag => (
-            <button
-              key={tag}
-              className={`filter-pill ${activeTag === tag ? 'active' : 'outline'}`}
-              onClick={() => toggleTag(tag)}
-            >
-              {tag}
-            </button>
-          ))}
+        {/* Row 2: Tag filters */}
+        <div className="filter-bar">
+          <div className="filter-group">
+            {['Pastel', 'Vintage', 'Retro', 'Neon', 'Dark', 'Warm', 'Cold'].map(tag => (
+              <button
+                key={tag}
+                className={`filter-pill ${activeTag === tag ? 'active' : 'outline'}`}
+                onClick={() => toggleTag(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
