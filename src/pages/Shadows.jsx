@@ -87,8 +87,8 @@ export default function Shadows() {
                   return `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px rgba(${r},${g},${b},${s.opacity})`;
                 }).join(', '),
               borderRadius: shapeRadius[shape],
-              width: shape === 'pill' ? '280px' : '180px',
-              height: shape === 'pill' ? '120px' : '180px',
+              width: shape === 'pill' ? '220px' : '160px',
+              height: shape === 'pill' ? '100px' : '160px',
             }}
           />
         </div>

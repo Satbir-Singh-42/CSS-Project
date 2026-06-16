@@ -78,11 +78,24 @@ function ShadeRow({ label, swatches }) {
 /* ─── main component ────────────────────────────────────────── */
 export default function ColorTools() {
   const [baseHex, setBaseHex] = useState('#6366f1');
+  const [hexInput, setHexInput] = useState('6366F1');
   const [rgb, setRgb] = useState(hexToRGB('#6366f1'));
   const [copiedMain, setCopiedMain] = useState(false);
   const [activeTab, setActiveTab] = useState('picker'); // 'picker' | 'shades' | 'harmony'
 
-  useEffect(() => { setRgb(hexToRGB(baseHex)); }, [baseHex]);
+  useEffect(() => { 
+    setRgb(hexToRGB(baseHex)); 
+    setHexInput(baseHex.replace('#', '').toUpperCase());
+  }, [baseHex]);
+
+  const handleHexInputChange = (e) => {
+    let val = e.target.value.replace(/#/g, '');
+    val = val.slice(0, 6); // Enforce max 6 chars without breaking paste
+    setHexInput(val);
+    if (/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(val)) {
+      setBaseHex('#' + val);
+    }
+  };
 
   const handleRgbChange = (ch, val) => {
     const next = { ...rgb, [ch]: Math.max(0,Math.min(255,Number(val))) };
@@ -145,9 +158,24 @@ export default function ColorTools() {
       {activeTab === 'picker' && (
         <div className="ct-panel">
           <div className="ct-picker-grid">
-            {/* RGB sliders */}
+            {/* Controls */}
             <div className="ct-picker-sliders">
-              <div className="ct-picker-title">RGB Sliders</div>
+              <div className="ct-picker-title">Color Controls</div>
+              
+              <div className="ct-slider-row" style={{ marginBottom: '0.75rem' }}>
+                <span className="ct-slider-label" style={{ color: 'var(--text-main)' }}>#</span>
+                <div className="ct-slider-wrap">
+                  <input
+                    type="text"
+                    value={hexInput}
+                    onChange={handleHexInputChange}
+                    className="ct-num-input"
+                    style={{ width: '100%', textAlign: 'left', padding: '0.65rem 1rem', fontSize: '0.95rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}
+                    placeholder="6366F1"
+                  />
+                </div>
+              </div>
+
               {[
                 {ch:'r', label:'Red',   color:'#ef4444', track:'linear-gradient(to right,#000,#ff0000)'},
                 {ch:'g', label:'Green', color:'#10b981', track:'linear-gradient(to right,#000,#00ff00)'},
